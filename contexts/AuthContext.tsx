@@ -1,6 +1,6 @@
 import { createContext, ReactNode, useState } from 'react';
 import Router from 'next/router';
-
+import { setCookie } from 'nookies';
 import { api } from '../services/api';
 
 type User = {
@@ -38,11 +38,21 @@ export function AuthProvider({ children }: AuthProviderProps) {
                 password
             })
 
-            const {token, refreshToken, permissions, roles } = response.data
+            const { token, refreshToken, permissions, roles } = response.data
 
             // sessionStorage - Problemas: (Fechar navegador => acaba a sessão)
             // localStorage - Problemas: (Funciona só no browser, não pega server side)
             // cookies - Vantagem: Server side bom
+
+            setCookie(null || undefined, 'nextauth.token', token, {
+                maxAge: 60 * 60 * 24 * 30, // 30 days
+                path: '/',
+            });
+
+            setCookie(null || undefined, 'nextauth.refreshToken', refreshToken, {
+                maxAge: 60 * 60 * 24 * 30, // 30 days
+                path: '/',
+            })
 
             setUser({ email, permissions, roles, })
 
@@ -51,7 +61,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
             console.log(err)
         }
     }
-
 
     return (
         <AuthContext.Provider value={{ signIn, user, isAuthenticated }}>
