@@ -1,6 +1,6 @@
-import { createContext, ReactNode, useState } from 'react';
+import { createContext, ReactNode, useEffect, useState } from 'react';
 import Router from 'next/router';
-import { setCookie } from 'nookies';
+import { setCookie, parseCookies } from 'nookies';
 import { api } from '../services/api';
 
 type User = {
@@ -16,8 +16,8 @@ type SignInCredentials = {
 
 type AuthContextData = {
     signIn: (credentials: SignInCredentials) => Promise<void>;
-    signOut: () => void;
-    user: User;
+    // signOut: () => void;
+    user?: User
     isAuthenticated: boolean;
 };
 
@@ -29,7 +29,17 @@ export const AuthContext = createContext({} as AuthContextData);
 
 export function AuthProvider({ children }: AuthProviderProps) {
     const [user, setUser] = useState<User>();
-    const isAuthenticated = user ? true : false;
+    const isAuthenticated = !!user;
+
+    useEffect(() => {
+        const { 'nextauth.token': token } = parseCookies();
+        if (token) {
+            api.get('/me').then(response => {
+                const { email, permissions, roles } = response.data
+                setUser({ email, permissions, roles, })
+            })
+        }
+    }, [])
 
     async function signIn({ email, password }: SignInCredentials) {
         try {
@@ -39,10 +49,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
             })
 
             const { token, refreshToken, permissions, roles } = response.data
-
-            // sessionStorage - Problemas: (Fechar navegador => acaba a sessão)
-            // localStorage - Problemas: (Funciona só no browser, não pega server side)
-            // cookies - Vantagem: Server side bom
 
             setCookie(null || undefined, 'nextauth.token', token, {
                 maxAge: 60 * 60 * 24 * 30, // 30 days
@@ -56,6 +62,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
             setUser({ email, permissions, roles, })
 
+            api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+
             Router.push('/dashboard')
         } catch (err) {
             console.log(err)
@@ -63,8 +71,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
 
     return (
-        <AuthContext.Provider value={{ signIn, user, isAuthenticated }}>
+        <AuthContext.Provider value={{ signIn, isAuthenticated, user }}>
             {children}
         </AuthContext.Provider>
     );
 };
+
+// sessionStorage - Problemas: (Fechar navegador => acaba a sessão)
+// localStorage - Problemas: (Funciona só no browser, não pega server side)
+// cookies - Vantagem: Server side bom
