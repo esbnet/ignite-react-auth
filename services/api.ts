@@ -1,7 +1,6 @@
-import { rejects } from "assert";
 import axios, { AxiosError } from "axios";
-import { parseCookies, setCookie } from "nookies";
-import { resolve } from "path";
+import { setCookie, parseCookies } from "nookies";
+import { singnOut } from "../contexts/AuthContext";
 
 let cookies = parseCookies();
 let isRefreshing = false;
@@ -23,7 +22,6 @@ api.interceptors.response.use(
 		const { status } = error.response;
 		// @ts-ignore
 		const { code } = error.response.data;
-
 		if (status === 401) {
 			if (code === "token.expired") {
 				const cookies = parseCookies();
@@ -88,7 +86,9 @@ api.interceptors.response.use(
 					});
 				});
 			} else {
+				singnOut();
 			}
 		}
+		return Promise.reject(error);
 	}
 );
