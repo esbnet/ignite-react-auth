@@ -23,15 +23,14 @@ api.interceptors.response.use(
 		// @ts-ignore
 		const { code } = error.response.data;
 		if (status === 401) {
+
 			if (code === "token.expired") {
 				const cookies = parseCookies();
 				const { "nextauth.refreshToken": refreshToken } = cookies;
-
 				const originalConfig = error.config;
 
 				if (!isRefreshing) {
 					isRefreshing = true;
-
 					api
 						.post("/refresh", {
 							refreshToken,
@@ -43,7 +42,6 @@ api.interceptors.response.use(
 								maxAge: 60 * 60 * 24 * 30, // 30 days
 								path: "/",
 							});
-
 							setCookie(
 								null || undefined,
 								"nextauth.refreshToken",
@@ -55,7 +53,6 @@ api.interceptors.response.use(
 							);
 							// @ts-ignore
 							api.defaults.headers["Authorization"] = `Bearer ${token}`;
-
 							failRequestQueue.forEach((request: any) =>
 								request.onSuccess(token)
 							);
@@ -77,7 +74,6 @@ api.interceptors.response.use(
 						onSuccess: (token: string) => {
 							// @ts-ignore
 							originalConfig.headers["Authorization"] = `Bearer $(token)`;
-
 							resolve(api(originalConfig));
 						},
 						onFailure: (err: AxiosError) => {
