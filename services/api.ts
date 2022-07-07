@@ -1,6 +1,7 @@
 import axios, { AxiosError } from "axios";
 import { setCookie, parseCookies } from "nookies";
 import { singnOut } from "../contexts/AuthContext";
+import { AuthTokenError } from "./errors/AuthTokenError";
 
 let isRefreshing = false;
 let failRequestQueue: any = [];
@@ -39,12 +40,12 @@ export function setupApiClient(ctx: undefined) {
 							.then((response) => {
 								const { token } = response.data;
 								console.log("Token:" + response);
-								setCookie(ctx || undefined, "nextauth.token", token, {
+								setCookie(ctx, "nextauth.token", token, {
 									maxAge: 60 * 60 * 24 * 30, // 30 days
 									path: "/",
 								});
 								setCookie(
-									ctx || undefined,
+									ctx,
 									"nextauth.refreshToken",
 									response.data.refreshToken,
 									{
@@ -66,6 +67,8 @@ export function setupApiClient(ctx: undefined) {
 								failRequestQueue = [];
 								if (process.browser) {
 									singnOut();
+								}else{
+									return Promise.reject(new AuthTokenError());
 								}
 							})
 							.finally(() => {
