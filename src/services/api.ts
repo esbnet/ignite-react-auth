@@ -1,10 +1,11 @@
 import axios, { AxiosError } from "axios";
 import { setCookie, parseCookies } from "nookies";
-import { singnOut } from "../contexts/AuthContext";
+import { signOut } from "../contexts/AuthContext";
 import { AuthTokenError } from "./errors/AuthTokenError";
 
 let isRefreshing = false;
-let failRequestQueue: any = [];
+//@ts-ignore
+let failedRequestsQueue = [];
 
 export function setupApiClient(ctx: undefined) {
 	let cookies = parseCookies(ctx);
@@ -39,7 +40,6 @@ export function setupApiClient(ctx: undefined) {
 							})
 							.then((response) => {
 								const { token } = response.data;
-								console.log("Token:" + response);
 								setCookie(ctx, "nextauth.token", token, {
 									maxAge: 60 * 60 * 24 * 30, // 30 days
 									path: "/",
@@ -55,20 +55,20 @@ export function setupApiClient(ctx: undefined) {
 								);
 								// @ts-ignore
 								api.defaults.headers["Authorization"] = `Bearer ${token}`;
-								failRequestQueue.forEach((request: any) =>
+								//@ts-ignore
+								failedRequestsQueue.forEach((request) =>
 									request.onSuccess(token)
 								);
-								failRequestQueue = [];
+								failedRequestsQueue = [];
 							})
 							.catch((err) => {
-								failRequestQueue.forEach((request: any) =>
+								//@ts-ignore
+								failedRequestsQueue.forEach((request) =>
 									request.onSuccess(err)
 								);
-								failRequestQueue = [];
+								failedRequestsQueue = [];
 								if (process.browser) {
-									singnOut();
-								}else{
-									return Promise.reject(new AuthTokenError());
+									signOut();
 								}
 							})
 							.finally(() => {
@@ -77,7 +77,7 @@ export function setupApiClient(ctx: undefined) {
 					}
 
 					return new Promise((resolve, reject) => {
-						failRequestQueue.push({
+						failedRequestsQueue.push({
 							onSuccess: (token: string) => {
 								// @ts-ignore
 								originalConfig.headers["Authorization"] = `Bearer $(token)`;
@@ -90,7 +90,9 @@ export function setupApiClient(ctx: undefined) {
 					});
 				} else {
 					if (process.browser) {
-						singnOut();
+						signOut();
+					} else {
+						return Promise.reject(new AuthTokenError());
 					}
 				}
 			}
